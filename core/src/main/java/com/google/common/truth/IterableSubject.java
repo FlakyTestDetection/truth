@@ -19,6 +19,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.SubjectUtils.accumulate;
 import static com.google.common.truth.SubjectUtils.countDuplicates;
+import static com.google.common.truth.SubjectUtils.countDuplicatesAndAddTypeInfo;
+import static com.google.common.truth.SubjectUtils.hasMatchingToStringPair;
+import static com.google.common.truth.SubjectUtils.iterableToCollection;
+import static com.google.common.truth.SubjectUtils.iterableToList;
+import static com.google.common.truth.SubjectUtils.iterableToStringWithTypeInfo;
+import static com.google.common.truth.SubjectUtils.objectToTypeName;
+import static com.google.common.truth.SubjectUtils.retainMatchingToString;
 import static java.util.Arrays.asList;
 
 import com.google.common.base.Objects;
@@ -32,11 +39,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedHashMultiset;
 import com.google.common.collect.Lists;
-import com.google.common.collect.MultimapBuilder;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Multiset.Entry;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
@@ -106,9 +111,10 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
       List<Object> elementList = Lists.newArrayList(element);
       if (hasMatchingToStringPair(actual(), elementList)) {
         failWithRawMessage(
-            "%s should have contained <%s> but doesn't. However, it does contain <%s>.",
+            "%s should have contained <%s (%s)> but doesn't. However, it does contain <%s>.",
             actualAsString(),
-            objectToStringWithTypeInfo(element),
+            element,
+            objectToTypeName(element),
             countDuplicatesAndAddTypeInfo(
                 retainMatchingToString(actual(), elementList /* itemsToCheck */)));
       } else {
@@ -168,24 +174,6 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
               retainMatchingToString(actual(), expected /* itemsToCheck */)));
     } else {
       fail(failVerb, expected);
-    }
-  }
-
-  private static <T> Collection<T> iterableToCollection(Iterable<T> iterable) {
-    if (iterable instanceof Collection) {
-      // Should be safe to assume that any Iterable implementing Collection isn't a one-shot
-      // iterable, right? I sure hope so.
-      return (Collection<T>) iterable;
-    } else {
-      return Lists.newArrayList(iterable);
-    }
-  }
-
-  private static <T> List<T> iterableToList(Iterable<T> iterable) {
-    if (iterable instanceof List) {
-      return (List<T>) iterable;
-    } else {
-      return Lists.newArrayList(iterable);
     }
   }
 
@@ -369,9 +357,11 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
                 addTypeInfo ? countDuplicatesAndAddTypeInfo(missing) : countDuplicates(missing),
                 addTypeInfo ? countDuplicatesAndAddTypeInfo(extra) : countDuplicates(extra),
                 failSuffix);
+            return ALREADY_FAILED;
           } else {
             failWithBadResultsAndSuffix(
                 "contains exactly", required, "is missing", countDuplicates(missing), failSuffix);
+            return ALREADY_FAILED;
           }
         }
         if (!extra.isEmpty()) {
@@ -381,6 +371,7 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
               "has unexpected items",
               countDuplicates(extra),
               failSuffix);
+          return ALREADY_FAILED;
         }
 
         // Since we know the iterables were not in the same order, inOrder() can just fail.
@@ -398,6 +389,7 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
           "has unexpected items",
           countDuplicates(Lists.newArrayList(actualIter)),
           failSuffix);
+      return ALREADY_FAILED;
     } else if (requiredIter.hasNext()) {
       failWithBadResultsAndSuffix(
           "contains exactly",
@@ -405,119 +397,12 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
           "is missing",
           countDuplicates(Lists.newArrayList(requiredIter)),
           failSuffix);
+      return ALREADY_FAILED;
     }
 
     // If neither iterator has elements, we reached the end and the elements were in
     // order, so inOrder() can just succeed.
     return IN_ORDER;
-  }
-
-  /**
-   * Makes a String representation of {@code items} with collapsed duplicates and additional class
-   * info.
-   *
-   * <p>Example: {@code countDuplicatesAndAddTypeInfo([1, 2, 2, 3]) == "[1, 2 [3 copies]]
-   * (java.lang.Integer)"} and {@code countDuplicatesAndAddTypeInfo([1, 2L]) == "[1
-   * (java.lang.Integer), 2 (java.lang.Long)]"}.
-   */
-  private static String countDuplicatesAndAddTypeInfo(Iterable<?> itemsIterable) {
-    Collection<?> items = iterableToCollection(itemsIterable);
-    Optional<Class<?>> homogeneousClass = getHomogeneousClass(items);
-
-    return homogeneousClass.isPresent()
-        ? StringUtil.format("%s (%s)", countDuplicates(items), homogeneousClass.get().getName())
-        : countDuplicates(addTypeInfoToEveryItem(items)).toString();
-  }
-
-  /**
-   * Makes a String representation of {@code items} with additional class info.
-   *
-   * <p>Example: {@code iterableToStringWithTypeInfo([1, 2]) == "[1, 2] (java.lang.Integer)"} and
-   * {@code iterableToStringWithTypeInfo([1, 2L]) == "[1 (java.lang.Integer), 2 (java.lang.Long)]"}.
-   */
-  private static String iterableToStringWithTypeInfo(Iterable<?> itemsIterable) {
-    Collection<?> items = iterableToCollection(itemsIterable);
-    Optional<Class<?>> homogeneousClass = getHomogeneousClass(items);
-
-    if (homogeneousClass.isPresent()) {
-      return StringUtil.format("%s (%s)", items, homogeneousClass.get().getName());
-    } else {
-      return addTypeInfoToEveryItem(items).toString();
-    }
-  }
-
-  /**
-   * Returns a new collection containing all elements in {@code items} for which there exists at
-   * least one element in {@code itemsToCheck} that has the same {@code toString()} value without
-   * being equal.
-   *
-   * <p>Example: {@code retainMatchingToString([1L, 2L, 2L], [2, 3]) == [2L, 2L]}
-   */
-  private static List<Object> retainMatchingToString(Iterable<?> items, Iterable<?> itemsToCheck) {
-    SetMultimap<String, Object> stringValueToItemsToCheck =
-        MultimapBuilder.hashKeys().hashSetValues().build();
-    for (Object itemToCheck : itemsToCheck) {
-      stringValueToItemsToCheck.put(String.valueOf(itemToCheck), itemToCheck);
-    }
-
-    List<Object> result = Lists.newArrayList();
-    for (Object item : items) {
-      for (Object itemToCheck : stringValueToItemsToCheck.get(String.valueOf(item))) {
-        if (!Objects.equal(itemToCheck, item)) {
-          result.add(item);
-          break;
-        }
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Returns true if there is a pair of an item from {@code items1} and one in {@code items2} that
-   * has the same {@code toString()} value without being equal.
-   *
-   * <p>Example: {@code hasMatchingToStringPair([1L, 2L], [1]) == true}
-   */
-  private static boolean hasMatchingToStringPair(Iterable<?> items1, Iterable<?> items2) {
-    return !retainMatchingToString(items1, items2).isEmpty();
-  }
-
-  /**
-   * Returns the single class of all given items or {@link Optional#absent()} if no such class
-   * exists.
-   */
-  private static Optional<Class<?>> getHomogeneousClass(Iterable<?> items) {
-    Optional<Class<?>> homogeneousClass = Optional.absent();
-    for (Object item : items) {
-      if (item == null) {
-        return Optional.absent();
-      } else if (!homogeneousClass.isPresent()) {
-        // This is the first item
-        homogeneousClass = Optional.<Class<?>>of(item.getClass());
-      } else if (!item.getClass().equals(homogeneousClass.get())) {
-        // items is a heterogeneous collection
-        return Optional.absent();
-      }
-    }
-    return homogeneousClass;
-  }
-
-  private static List<String> addTypeInfoToEveryItem(Iterable<?> items) {
-    List<String> itemsWithTypeInfo = Lists.newArrayList();
-    for (Object item : items) {
-      itemsWithTypeInfo.add(objectToStringWithTypeInfo(item));
-    }
-    return itemsWithTypeInfo;
-  }
-
-  /** Converts the argument's value to a String and appends the class name. */
-  private static String objectToStringWithTypeInfo(Object item) {
-    if (item == null) {
-      // The name "null type" comes from the interface javax.lang.model.type.NullType.
-      return "null (null type)";
-    } else {
-      return StringUtil.format("%s (%s)", item, item.getClass().getName());
-    }
   }
 
   /**
@@ -592,6 +477,13 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
 
   /** Ordered implementation that does nothing because it's already known to be true. */
   private static final Ordered IN_ORDER =
+      new Ordered() {
+        @Override
+        public void inOrder() {}
+      };
+
+  /** Ordered implementation that does nothing because an earlier check already caused a failure. */
+  private static final Ordered ALREADY_FAILED =
       new Ordered() {
         @Override
         public void inOrder() {}
@@ -695,8 +587,12 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
    * the {@link Iterable} under test) are compared to expected elements using the given {@link
    * Correspondence}. The actual elements must be of type {@code A}, the expected elements must be
    * of type {@code E}. The proposition is actually executed by continuing the method chain. For
-   * example: <pre>   {@code
-   *   assertThat(actualIterable).comparingElementsUsing(correspondence).contains(expected);}</pre>
+   * example:
+   *
+   * <pre>{@code
+   * assertThat(actualIterable).comparingElementsUsing(correspondence).contains(expected);
+   * }</pre>
+   *
    * where {@code actualIterable} is an {@code Iterable<A>} (or, more generally, an {@code
    * Iterable<? extends A>}), {@code correspondence} is a {@code Correspondence<A, E>}, and {@code
    * expected} is an {@code E}.
@@ -809,14 +705,14 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
     private boolean correspondInOrderExactly(
         Iterator<? extends A> actual, Iterator<? extends E> expected) {
 
-        if (!expected.hasNext()) {
-          // If the expected iterator is empty, and the actual iterator is not empty, fail
-          if (actual.hasNext()) {
-            fail("is empty");
-          }
-          // If the previous branch doesn't throw, then the subject was empty, so return true
-          return true;
+      if (!expected.hasNext()) {
+        // If the expected iterator is empty, and the actual iterator is not empty, fail
+        if (actual.hasNext()) {
+          fail("is empty");
         }
+        // If the previous branch doesn't throw, then the subject was empty, so return true
+        return true;
+      }
 
       while (actual.hasNext() && expected.hasNext()) {
         A actualElement = actual.next();
@@ -861,12 +757,9 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
       List<? extends E> missing = findNotIndexed(expected, mapping.inverse().keySet());
       Optional<String> missingOrExtraMessage = describeMissingOrExtra(extra, missing);
       if (missingOrExtraMessage.isPresent()) {
-          failWithRawMessage(
-              "Not true that %s contains exactly one element that %s each element of <%s>. It %s",
-              actualAsString(),
-              correspondence,
-              expected,
-              missingOrExtraMessage.get());
+        failWithRawMessage(
+            "Not true that %s contains exactly one element that %s each element of <%s>. It %s",
+            actualAsString(), correspondence, expected, missingOrExtraMessage.get());
       }
     }
 
@@ -914,8 +807,8 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
 
     /**
      * Returns a description of the missing items suitable for inclusion in failure messages. If
-     * there is a single item, returns {@code "<item>"}. Otherwise, returns
-     * {@code "each of <[item, item, item]>"}.
+     * there is a single item, returns {@code "<item>"}. Otherwise, returns {@code "each of <[item,
+     * item, item]>"}.
      */
     private String formatMissing(List<?> missing) {
       if (missing.size() == 1) {
@@ -926,12 +819,12 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
     }
 
     /**
-     * Given a many:many mapping between actual elements and expected elements, finds a 1:1
-     * mapping which is the subset of that many:many mapping which includes the largest possible
-     * number of elements. The input and output mappings are each described as a map or multimap
-     * where the keys are indexes into the actual list and the values are indexes into the expected
-     * list. If there are multiple possible output mappings tying for the largest possible, this
-     * returns an arbitrary one.
+     * Given a many:many mapping between actual elements and expected elements, finds a 1:1 mapping
+     * which is the subset of that many:many mapping which includes the largest possible number of
+     * elements. The input and output mappings are each described as a map or multimap where the
+     * keys are indexes into the actual list and the values are indexes into the expected list. If
+     * there are multiple possible output mappings tying for the largest possible, this returns an
+     * arbitrary one.
      */
     private ImmutableBiMap<Integer, Integer> findMaximalOneToOneMapping(
         ImmutableMultimap<Integer, Integer> edges) {
@@ -959,9 +852,7 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
      * versa, and fails if this is not the case.
      */
     void failIfOneToOneMappingHasMissingOrExtra(
-        List<? extends A> actual,
-        List<? extends E> expected,
-        BiMap<Integer, Integer> mapping) {
+        List<? extends A> actual, List<? extends E> expected, BiMap<Integer, Integer> mapping) {
       List<? extends A> extra = findNotIndexed(actual, mapping.keySet());
       List<? extends E> missing = findNotIndexed(expected, mapping.values());
       Optional<String> missingOrExtraMessage = describeMissingOrExtra(extra, missing);
@@ -973,10 +864,7 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
                 + "but there was no 1:1 mapping between all the actual and expected elements. "
                 + "Using the most complete 1:1 mapping (or one such mapping, if there is a tie), "
                 + "it %s",
-            actualAsString(),
-            correspondence,
-            expected,
-            missingOrExtraMessage.get());
+            actualAsString(), correspondence, expected, missingOrExtraMessage.get());
       }
     }
 

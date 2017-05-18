@@ -17,9 +17,14 @@ package com.google.common.truth;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.truth.SubjectUtils.countDuplicatesAndAddTypeInfo;
+import static com.google.common.truth.SubjectUtils.hasMatchingToStringPair;
+import static com.google.common.truth.SubjectUtils.objectToTypeName;
+import static com.google.common.truth.SubjectUtils.retainMatchingToString;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedHashMultiset;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -76,7 +81,18 @@ public class MultimapSubject extends Subject<MultimapSubject, Multimap<?, ?>> {
   /** Fails if the multimap does not contain the given key. */
   public void containsKey(@Nullable Object key) {
     if (!actual().containsKey(key)) {
-      fail("contains key", key);
+      List<Object> keyList = Lists.newArrayList(key);
+      if (hasMatchingToStringPair(actual().keySet(), keyList)) {
+        failWithRawMessage(
+            "Not true that %s contains key <%s (%s)>. However, it does contain keys <%s>.",
+            actualAsString(),
+            key,
+            objectToTypeName(key),
+            countDuplicatesAndAddTypeInfo(
+                retainMatchingToString(actual().keySet(), keyList /* itemsToCheck */)));
+      } else {
+        fail("contains key", key);
+      }
     }
   }
 
@@ -92,12 +108,20 @@ public class MultimapSubject extends Subject<MultimapSubject, Multimap<?, ?>> {
     // TODO(kak): Can we share any of this logic w/ MapSubject.containsEntry()?
     if (!actual().containsEntry(key, value)) {
       Entry<Object, Object> entry = Maps.immutableEntry(key, value);
-      if (actual().containsKey(key)) {
+      List<Entry<Object, Object>> entryList = ImmutableList.of(entry);
+      if (hasMatchingToStringPair(actual().entries(), entryList)) {
+        failWithRawMessage(
+            "Not true that %s contains entry <%s (%s)>. However, it does contain entries <%s>",
+            actualAsString(),
+            entry,
+            objectToTypeName(entry),
+            countDuplicatesAndAddTypeInfo(
+                retainMatchingToString(actual().entries(), entryList /* itemsToCheck */)));
+      } else if (actual().containsKey(key)) {
         failWithRawMessage(
             "Not true that %s contains entry <%s>. However, it has a mapping from <%s> to <%s>",
             actualAsString(), entry, key, actual().asMap().get(key));
-      }
-      if (actual().containsValue(value)) {
+      } else if (actual().containsValue(value)) {
         Set<Object> keys = new LinkedHashSet<Object>();
         for (Entry<?, ?> actualEntry : actual().entries()) {
           if (Objects.equal(actualEntry.getValue(), value)) {
@@ -108,8 +132,9 @@ public class MultimapSubject extends Subject<MultimapSubject, Multimap<?, ?>> {
             "Not true that %s contains entry <%s>. "
                 + "However, the following keys are mapped to <%s>: %s",
             actualAsString(), entry, value, keys);
+      } else {
+        fail("contains entry", Maps.immutableEntry(key, value));
       }
-      fail("contains entry", Maps.immutableEntry(key, value));
     }
   }
 
@@ -177,13 +202,21 @@ public class MultimapSubject extends Subject<MultimapSubject, Multimap<?, ?>> {
     // the subject but not enough times. Similarly for unexpected extra items.
     if (!missing.isEmpty()) {
       if (!extra.isEmpty()) {
+        boolean addTypeInfo = hasMatchingToStringPair(missing.entries(), extra.entries());
         failWithRawMessage(
             "Not true that %s contains exactly <%s>. "
                 + "It is missing <%s> and has unexpected items <%s>",
             actualAsString(),
             expectedMultimap,
-            countDuplicatesMultimap(missing),
-            countDuplicatesMultimap(extra));
+            // Note: The usage of countDuplicatesAndAddTypeInfo() below causes entries no longer to
+            // be grouped by key in the 'missing' and 'unexpected items' parts of the message (we
+            // still show the actual and expected multimaps in the standard format).
+            addTypeInfo
+                ? countDuplicatesAndAddTypeInfo(missing.entries())
+                : countDuplicatesMultimap(missing),
+            addTypeInfo
+                ? countDuplicatesAndAddTypeInfo(extra.entries())
+                : countDuplicatesMultimap(extra));
       } else {
         failWithBadResults(
             "contains exactly", expectedMultimap, "is missing", countDuplicatesMultimap(missing));

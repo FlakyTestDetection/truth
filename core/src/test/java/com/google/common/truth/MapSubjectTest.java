@@ -17,11 +17,13 @@ package com.google.common.truth;
 
 import static com.google.common.truth.IterableSubjectTest.STRING_PARSES_TO_INTEGER_CORRESPONDENCE;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.util.Map;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,6 +36,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MapSubjectTest {
+
+  @Rule public final ExpectFailure expectFailure = new ExpectFailure();
+
   @Test
   public void containsExactlyWithNullKey() {
     Map<String, String> actual = Maps.newHashMap();
@@ -191,6 +196,21 @@ public class MapSubjectTest {
               "There must be an equal number of key/value pairs "
                   + "(i.e., the number of key/value parameters (13) must be even).");
     }
+  }
+
+  @Test
+  public void containsExactly_failsWithSameToString() {
+    expectFailure
+        .whenTesting()
+        .that(ImmutableMap.of("jan", 1L, "feb", 2L))
+        .containsExactly("jan", 1, "feb", 2);
+    assertThat(expectFailure.getFailure())
+        .hasMessageThat()
+        .isEqualTo(
+            "Not true that <[jan=1, feb=2]> contains exactly <[jan=1, feb=2]>. It is missing "
+                + "<[jan=1, feb=2] (Map.Entry<java.lang.String, java.lang.Integer>)> and has "
+                + "unexpected items "
+                + "<[jan=1, feb=2] (Map.Entry<java.lang.String, java.lang.Long>)>");
   }
 
   @Test
@@ -415,6 +435,32 @@ public class MapSubjectTest {
   }
 
   @Test
+  public void containsKey_failsWithSameToString() {
+    expectFailure
+        .whenTesting()
+        .that(ImmutableMap.of(1L, "value1", 2L, "value2", "1", "value3"))
+        .containsKey(1);
+    assertThat(expectFailure.getFailure())
+        .hasMessageThat()
+        .isEqualTo(
+            "Not true that <{1=value1, 2=value2, 1=value3}> contains key <1 (java.lang.Integer)>. "
+                + "However, it does contain keys <[1 (java.lang.Long), 1 (java.lang.String)]>.");
+  }
+
+  @Test
+  public void containsKey_failsWithNullStringAndNull() {
+    Map<String, String> actual = Maps.newHashMap();
+    actual.put("null", "value1");
+
+    expectFailure.whenTesting().that(actual).containsKey(null);
+    assertThat(expectFailure.getFailure())
+        .hasMessageThat()
+        .isEqualTo(
+            "Not true that <{null=value1}> contains key <null (null type)>. However, "
+                + "it does contain keys <[null] (java.lang.String)>.");
+  }
+
+  @Test
   public void containsNullKey() {
     Map<String, String> actual = Maps.newHashMap();
     actual.put(null, "null");
@@ -472,6 +518,33 @@ public class MapSubjectTest {
           .hasMessageThat()
           .isEqualTo("Not true that <{kurt=kluever}> contains entry <greg=kick>");
     }
+  }
+  
+  @Test
+  public void containsEntry_failsWithSameToStringOfKey() {
+    expectFailure
+        .whenTesting()
+        .that(ImmutableMap.of(1L, "value1", 2L, "value2"))
+        .containsEntry(1, "value1");
+    assertWithMessage("Full message: %s", expectFailure.getFailure().getMessage())
+        .that(expectFailure.getFailure())
+        .hasMessageThat()
+        .isEqualTo(
+            "Not true that <{1=value1, 2=value2}> contains entry "
+                + "<1=value1 (Map.Entry<java.lang.Integer, java.lang.String>)>. "
+                + "However, it does contain keys <[1] (java.lang.Long)>.");
+  }
+
+  @Test
+  public void containsEntry_failsWithSameToStringOfValue() {
+    expectFailure.whenTesting().that(ImmutableMap.of(1, "null")).containsEntry(1, null);
+    assertWithMessage("Full message: %s", expectFailure.getFailure().getMessage())
+        .that(expectFailure.getFailure())
+        .hasMessageThat()
+        .isEqualTo(
+            "Not true that <{1=null}> contains entry <1=null "
+                + "(Map.Entry<java.lang.Integer, null type>)>. However, it does contain values "
+                + "<[null] (java.lang.String)>.");
   }
 
   @Test

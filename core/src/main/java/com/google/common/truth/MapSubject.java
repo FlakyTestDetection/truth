@@ -17,14 +17,20 @@ package com.google.common.truth;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.truth.SubjectUtils.countDuplicatesAndAddTypeInfo;
+import static com.google.common.truth.SubjectUtils.hasMatchingToStringPair;
+import static com.google.common.truth.SubjectUtils.objectToTypeName;
+import static com.google.common.truth.SubjectUtils.retainMatchingToString;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.LinkedHashMultiset;
+import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -98,7 +104,18 @@ public class MapSubject extends Subject<MapSubject, Map<?, ?>> {
   /** Fails if the map does not contain the given key. */
   public void containsKey(@Nullable Object key) {
     if (!actual().containsKey(key)) {
-      fail("contains key", key);
+      List<Object> keyList = Lists.newArrayList(key);
+      if (hasMatchingToStringPair(actual().keySet(), keyList)) {
+        failWithRawMessage(
+            "Not true that %s contains key <%s (%s)>. However, it does contain keys <%s>.",
+            actualAsString(),
+            key,
+            objectToTypeName(key),
+            countDuplicatesAndAddTypeInfo(
+                retainMatchingToString(actual().keySet(), keyList /* itemsToCheck */)));
+      } else {
+        fail("contains key", key);
+      }
     }
   }
 
@@ -113,12 +130,29 @@ public class MapSubject extends Subject<MapSubject, Map<?, ?>> {
   public void containsEntry(@Nullable Object key, @Nullable Object value) {
     Entry<Object, Object> entry = Maps.immutableEntry(key, value);
     if (!actual().entrySet().contains(entry)) {
-      if (actual().containsKey(key)) {
+      List<Object> keyList = Lists.newArrayList(key);
+      List<Object> valueList = Lists.newArrayList(value);
+      if (hasMatchingToStringPair(actual().keySet(), keyList)) {
+        failWithRawMessage(
+            "Not true that %s contains entry <%s (%s)>. However, it does contain keys <%s>.",
+            actualAsString(),
+            entry,
+            objectToTypeName(entry),
+            countDuplicatesAndAddTypeInfo(
+                retainMatchingToString(actual().keySet(), keyList /* itemsToCheck */)));
+      } else if (hasMatchingToStringPair(actual().values(), valueList)) {
+        failWithRawMessage(
+            "Not true that %s contains entry <%s (%s)>. However, it does contain values <%s>.",
+            actualAsString(),
+            entry,
+            objectToTypeName(entry),
+            countDuplicatesAndAddTypeInfo(
+                retainMatchingToString(actual().values(), valueList /* itemsToCheck */)));
+      } else if (actual().containsKey(key)) {
         failWithRawMessage(
             "Not true that %s contains entry <%s>. However, it has a mapping from <%s> to <%s>",
             actualAsString(), entry, key, actual().get(key));
-      }
-      if (actual().containsValue(value)) {
+      } else if (actual().containsValue(value)) {
         Set<Object> keys = new LinkedHashSet<Object>();
         for (Entry<?, ?> actualEntry : actual().entrySet()) {
           if (Objects.equal(actualEntry.getValue(), value)) {
@@ -129,8 +163,9 @@ public class MapSubject extends Subject<MapSubject, Map<?, ?>> {
             "Not true that %s contains entry <%s>. "
                 + "However, the following keys are mapped to <%s>: %s",
             actualAsString(), entry, value, keys);
+      } else {
+        fail("contains entry", entry);
       }
-      fail("contains entry", entry);
     }
   }
 
@@ -193,10 +228,14 @@ public class MapSubject extends Subject<MapSubject, Map<?, ?>> {
    * Starts a method chain for a test proposition in which the actual values (i.e. the values of the
    * {@link Map} under test) are compared to expected values using the given {@link Correspondence}.
    * The actual values must be of type {@code A}, the expected values must be of type {@code E}. The
-   * proposition is actually executed by continuing the method chain. For example:<pre>   {@code
-   *   assertThat(actualMap)
-   *     .comparingValuesUsing(correspondence)
-   *     .containsEntry(expectedKey, expectedValue);}</pre>
+   * proposition is actually executed by continuing the method chain. For example:
+   *
+   * <pre>{@code
+   * assertThat(actualMap)
+   *   .comparingValuesUsing(correspondence)
+   *   .containsEntry(expectedKey, expectedValue);
+   * }</pre>
+   *
    * where {@code actualMap} is a {@code Map<?, A>} (or, more generally, a {@code Map<?, ? extends
    * A>}), {@code correspondence} is a {@code Correspondence<A, E>}, and {@code expectedValue} is an
    * {@code E}.

@@ -35,29 +35,38 @@ import javax.annotation.Nullable;
  * semantics in a fluent style.
  *
  * <p>Truth is the simplest entry point class. A developer can statically import the assertThat()
- * method to get easy access to the library's capabilities. Then, instead of writing: <pre>   {@code
- *   Assert.assertEquals(a, b);
- *   Assert.assertTrue(c);
- *   Assert.assertTrue(d.contains(a));
- *   Assert.assertTrue(d.contains(a) && d.contains(b));
- *   Assert.assertTrue(d.contains(a) || d.contains(b) || d.contains(c));}</pre>
+ * method to get easy access to the library's capabilities. Then, instead of writing:
  *
- * one would write: <pre>   {@code
- *   assertThat(a).isEqualTo(b);
- *   assertThat(c).isTrue();
- *   assertThat(d).contains(a);
- *   assertThat(d).containsAllOf(a, b);
- *   assertThat(d).containsAnyOf(a, b, c);}</pre>
+ * <pre>{@code
+ * Assert.assertEquals(a, b);
+ * Assert.assertTrue(c);
+ * Assert.assertTrue(d.contains(a));
+ * Assert.assertTrue(d.contains(a) && d.contains(b));
+ * Assert.assertTrue(d.contains(a) || d.contains(b) || d.contains(c));
+ * }</pre>
+ *
+ * one would write:
+ *
+ * <pre>{@code
+ * assertThat(a).isEqualTo(b);
+ * assertThat(c).isTrue();
+ * assertThat(d).contains(a);
+ * assertThat(d).containsAllOf(a, b);
+ * assertThat(d).containsAnyOf(a, b, c);
+ * }</pre>
  *
  * <p>Tests should be easier to read, and flow more clearly.
  *
  * <p>Often, tests assert a relationship between a value produced by the test (the "actual" value)
  * and some reference value (the "expected" value). It is strongly recommended that the actual value
- * is made the subject of the assertion. For example: <pre>   {@code
- *   assertThat(actual).isEqualTo(expected);  // recommended
- *   assertThat(expected).isEqualTo(actual);  // not recommended
- *   assertThat(actual).isIn(expectedPossibilities);  // recommended
- *   assertThat(expectedPossibilities).contains(actual);  // not recommended}</pre>
+ * is made the subject of the assertion. For example:
+ *
+ * <pre>{@code
+ * assertThat(actual).isEqualTo(expected);  // recommended
+ * assertThat(expected).isEqualTo(actual);  // not recommended
+ * assertThat(actual).isIn(expectedPossibilities);  // recommended
+ * assertThat(expectedPossibilities).contains(actual);  // not recommended
+ * }</pre>
  *
  * @author David Saff
  * @author Christian Gruber (cgruber@israfil.net)
@@ -66,22 +75,34 @@ public final class Truth {
   private Truth() {}
 
   public static final FailureStrategy THROW_ASSERTION_ERROR =
-      new FailureStrategy() {
+      new AbstractFailureStrategy() {
+        @Override
+        public void fail(String message, Throwable cause) {
+          throw stripFramesAndTryToAddCause(new AssertionError(message), cause);
+        }
+
         @Override
         public void failComparing(
             String message, CharSequence expected, CharSequence actual, Throwable cause) {
           AssertionError e =
               Platform.comparisonFailure(message, expected.toString(), actual.toString());
-          if (cause != null && e.getCause() == null) {
-            try {
-              e.initCause(cause);
-            } catch (IllegalStateException alreadyInitializedBecauseOfHarmonyBug) {
-              // https://code.google.com/p/android/issues/detail?id=29378
-              // No message, but it's the best we can do without awful hacks.
-              throw new AssertionError(cause);
-            }
+          throw stripFramesAndTryToAddCause(e, cause);
+        }
+
+        private AssertionError stripFramesAndTryToAddCause(
+            AssertionError failure, Throwable cause) {
+          if (cause == null) {
+            // Default "cause" contains the full stacktrace, without any stripped frames
+            cause = new AssertionError(failure.getMessage());
           }
-          throw e;
+          try {
+            failure.initCause(cause);
+          } catch (IllegalStateException alreadyInitializedBecauseOfHarmonyBug) {
+            // https://code.google.com/p/android/issues/detail?id=29378
+            // No message, but it's the best we can do without awful hacks.
+            throw stripTruthStackFrames(new AssertionError(cause));
+          }
+          return stripTruthStackFrames(failure);
         }
       };
 
