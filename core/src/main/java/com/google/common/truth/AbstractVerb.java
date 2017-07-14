@@ -36,6 +36,10 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
     this.failureStrategy = checkNotNull(failureStrategy);
   }
 
+  /*
+   * TODO(cpovirk): Maybe provide a generic handleAssertionStart() method for Expect to override
+   * instead of this?
+   */
   protected FailureStrategy getFailureStrategy() {
     // TODO(cgruber): Extract this logic solely into the withFailureMessage() methods.
     return hasFailureMessage()
@@ -44,12 +48,12 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
   }
 
   /** Triggers the failure strategy with an empty failure message */
-  public void fail() {
+  public final void fail() {
     getFailureStrategy().fail("");
   }
 
   /** Triggers the failure strategy with the given failure message */
-  public void fail(@Nullable String format, Object /*@NullableType*/... args) {
+  public final void fail(@Nullable String format, Object /*@NullableType*/... args) {
     getFailureStrategy().fail(format(format, args));
   }
 
@@ -76,6 +80,28 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
   public abstract T withFailureMessage(@Nullable String format, Object /*@NullableType*/... args);
 
   /**
+   * Overrides the failure message of the subsequent subject's propositions.
+   *
+   * @see com.google.common.truth.delegation.DelegationTest
+   * @param messageToPrepend a descriptive message.
+   * @return A custom verb which will show the descriptive message along with the normal failure
+   *     text.
+   */
+  // TODO(cgruber) try to delete this (binary incompatible, but see if there's a way.
+  public abstract T withMessage(@Nullable String messageToPrepend);
+
+  /**
+   * Overrides the failure message of the subsequent subject's propositions.
+   *
+   * @see com.google.common.truth.delegation.DelegationTest
+   * @param format a descriptive message with formatting template content.
+   * @param args object parameters to be substituted into the message template.
+   * @return A custom verb which will show the descriptive message along with the normal failure
+   *     text.
+   */
+  public abstract T withMessage(@Nullable String format, Object /*@NullableType*/... args);
+
+  /**
    * The recommended method of extension of Truth to new types, which is documented in {@link
    * com.google.common.truth.delegation.DelegationTest}.
    *
@@ -83,8 +109,8 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
    * @param factory a {@code SubjectFactory<S, D>} implementation
    * @return A custom verb for the type returned by the SubjectFactory
    */
-  public <S extends Subject<S, D>, D, SF extends SubjectFactory<S, D>> DelegatedVerb<S, D> about(
-      SF factory) {
+  public final <S extends Subject<S, D>, D, SF extends SubjectFactory<S, D>>
+      DelegatedVerb<S, D> about(SF factory) {
     return new DelegatedVerb<S, D>(getFailureStrategy(), factory);
   }
 
@@ -96,13 +122,14 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
    * @param factory a {@code DelegatedVerbFactory<V>} implementation
    * @return A custom verb of type {@code <V>}
    */
-  public <V extends AbstractDelegatedVerb<V>> V about(DelegatedVerbFactory<V> factory) {
+  public final <V extends AbstractDelegatedVerb> V about(DelegatedVerbFactory<V> factory) {
     return factory.createVerb(getFailureStrategy());
   }
 
   /** A special Verb implementation which wraps a SubjectFactory */
   public static final class DelegatedVerb<S extends Subject<S, T>, T>
-      extends AbstractDelegatedVerb<DelegatedVerb<S, T>> {
+      extends AbstractDelegatedVerb {
+    private final FailureStrategy failureStrategy;
     private final SubjectFactory<S, T> subjectFactory;
 
     private static class Factory<S extends Subject<S, T>, T>
@@ -120,7 +147,7 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
     }
 
     public DelegatedVerb(FailureStrategy failureStrategy, SubjectFactory<S, T> subjectFactory) {
-      super(failureStrategy, new Factory<S, T>(subjectFactory));
+      this.failureStrategy = checkNotNull(failureStrategy);
       this.subjectFactory = checkNotNull(subjectFactory);
     }
 
@@ -129,7 +156,7 @@ public abstract class AbstractVerb<T extends AbstractVerb<T>> extends FailureCon
     }
   }
 
-  protected static class MessagePrependingFailureStrategy extends FailureStrategy {
+  protected static final class MessagePrependingFailureStrategy extends FailureStrategy {
     private final FailureStrategy delegate;
     private final FailureContext messageHolder;
 
