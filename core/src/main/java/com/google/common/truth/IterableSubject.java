@@ -18,6 +18,7 @@ package com.google.common.truth;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.SubjectUtils.accumulate;
+import static com.google.common.truth.SubjectUtils.annotateEmptyStrings;
 import static com.google.common.truth.SubjectUtils.countDuplicates;
 import static com.google.common.truth.SubjectUtils.countDuplicatesAndAddTypeInfo;
 import static com.google.common.truth.SubjectUtils.hasMatchingToStringPair;
@@ -240,12 +241,17 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
             "Not true that %s %s <%s>. It is missing <%s>. However, it does contain <%s>.",
             actualAsString(),
             failVerb,
-            expected,
-            countDuplicatesAndAddTypeInfo(missing),
+            annotateEmptyStrings(expected),
+            countDuplicatesAndAddTypeInfo(annotateEmptyStrings(missing)),
             countDuplicatesAndAddTypeInfo(
-                retainMatchingToString(actual(), missing /* itemsToCheck */)));
+                annotateEmptyStrings(
+                    retainMatchingToString(actual(), missing /* itemsToCheck */))));
       } else {
-        failWithBadResults(failVerb, expected, "is missing", countDuplicates(missing));
+        failWithBadResults(
+            failVerb,
+            annotateEmptyStrings(expected),
+            "is missing",
+            countDuplicates(annotateEmptyStrings(missing)));
       }
     }
     return ordered ? IN_ORDER : new NotInOrder("contains all elements in order", expected);
@@ -353,23 +359,31 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
                 "Not true that %s contains exactly <%s>. "
                     + "It is missing <%s> and has unexpected items <%s>%s",
                 actualAsString(),
-                required,
-                addTypeInfo ? countDuplicatesAndAddTypeInfo(missing) : countDuplicates(missing),
-                addTypeInfo ? countDuplicatesAndAddTypeInfo(extra) : countDuplicates(extra),
+                annotateEmptyStrings(required),
+                addTypeInfo
+                    ? countDuplicatesAndAddTypeInfo(annotateEmptyStrings(missing))
+                    : countDuplicates(annotateEmptyStrings(missing)),
+                addTypeInfo
+                    ? countDuplicatesAndAddTypeInfo(annotateEmptyStrings(extra))
+                    : countDuplicates(annotateEmptyStrings(extra)),
                 failSuffix);
             return ALREADY_FAILED;
           } else {
             failWithBadResultsAndSuffix(
-                "contains exactly", required, "is missing", countDuplicates(missing), failSuffix);
+                "contains exactly",
+                annotateEmptyStrings(required),
+                "is missing",
+                countDuplicates(annotateEmptyStrings(missing)),
+                failSuffix);
             return ALREADY_FAILED;
           }
         }
         if (!extra.isEmpty()) {
           failWithBadResultsAndSuffix(
               "contains exactly",
-              required,
+              annotateEmptyStrings(required),
               "has unexpected items",
-              countDuplicates(extra),
+              countDuplicates(annotateEmptyStrings(extra)),
               failSuffix);
           return ALREADY_FAILED;
         }
@@ -385,17 +399,17 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
     if (actualIter.hasNext()) {
       failWithBadResultsAndSuffix(
           "contains exactly",
-          required,
+          annotateEmptyStrings(required),
           "has unexpected items",
-          countDuplicates(Lists.newArrayList(actualIter)),
+          countDuplicates(annotateEmptyStrings(Lists.newArrayList(actualIter))),
           failSuffix);
       return ALREADY_FAILED;
     } else if (requiredIter.hasNext()) {
       failWithBadResultsAndSuffix(
           "contains exactly",
-          required,
+          annotateEmptyStrings(required),
           "is missing",
-          countDuplicates(Lists.newArrayList(requiredIter)),
+          countDuplicates(annotateEmptyStrings(Lists.newArrayList(requiredIter))),
           failSuffix);
       return ALREADY_FAILED;
     }
@@ -455,7 +469,8 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
       }
     }
     if (!present.isEmpty()) {
-      failWithBadResults(failVerb, excluded, "contains", present);
+      failWithBadResults(
+          failVerb, annotateEmptyStrings(excluded), "contains", annotateEmptyStrings(present));
     }
   }
 
@@ -685,12 +700,17 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
       // it for completeness.
       ImmutableSetMultimap<Integer, Integer> candidateMapping =
           findCandidateMapping(actualList, expectedList);
-      failIfCandidateMappingHasMissingOrExtra(actualList, expectedList, candidateMapping);
+      if (failIfCandidateMappingHasMissingOrExtra(actualList, expectedList, candidateMapping)) {
+        return ALREADY_FAILED;
+      }
       // We know that every expected element maps to at least one actual element, and vice versa.
       // Find a maximal 1:1 mapping, and check it for completeness.
       ImmutableBiMap<Integer, Integer> maximalOneToOneMapping =
           findMaximalOneToOneMapping(candidateMapping);
-      failIfOneToOneMappingHasMissingOrExtra(actualList, expectedList, maximalOneToOneMapping);
+      if (failIfOneToOneMappingHasMissingOrExtra(
+          actualList, expectedList, maximalOneToOneMapping)) {
+        return ALREADY_FAILED;
+      }
       // The 1:1 mapping is complete, so the test succeeds (but we know from above that the mapping
       // is not in order).
       return new NotInOrder(
@@ -749,7 +769,7 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
      * indexes into the expected list, checks that every actual element maps to at least one
      * expected element and vice versa, and fails if this is not the case.
      */
-    void failIfCandidateMappingHasMissingOrExtra(
+    boolean failIfCandidateMappingHasMissingOrExtra(
         List<? extends A> actual,
         List<? extends E> expected,
         ImmutableMultimap<Integer, Integer> mapping) {
@@ -760,7 +780,9 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
         failWithRawMessage(
             "Not true that %s contains exactly one element that %s each element of <%s>. It %s",
             actualAsString(), correspondence, expected, missingOrExtraMessage.get());
+        return true;
       }
+      return false;
     }
 
     /**
@@ -851,7 +873,7 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
      * into the expected list, checks that every actual element maps to an expected element and vice
      * versa, and fails if this is not the case.
      */
-    void failIfOneToOneMappingHasMissingOrExtra(
+    boolean failIfOneToOneMappingHasMissingOrExtra(
         List<? extends A> actual, List<? extends E> expected, BiMap<Integer, Integer> mapping) {
       List<? extends A> extra = findNotIndexed(actual, mapping.keySet());
       List<? extends E> missing = findNotIndexed(expected, mapping.values());
@@ -865,7 +887,9 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
                 + "Using the most complete 1:1 mapping (or one such mapping, if there is a tie), "
                 + "it %s",
             actualAsString(), correspondence, expected, missingOrExtraMessage.get());
+        return true;
       }
+      return false;
     }
 
     /**
