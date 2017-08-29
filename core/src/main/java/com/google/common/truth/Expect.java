@@ -16,27 +16,46 @@
 package com.google.common.truth;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.getStackTraceAsString;
 import static com.google.common.truth.StringUtil.messageFor;
 
 import com.google.common.annotations.GwtIncompatible;
 import com.google.common.base.Objects;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.junit.internal.AssumptionViolatedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+/**
+ * A {@link TestRule} that batches up all failures encountered during a test, and reports them all
+ * together at the end.
+ *
+ * <p>Usage:
+ *
+ * <pre>
+ * {@code @Rule public final Expect expect = Expect.create();}
+ *
+ * {@code ...}
+ *
+ * {@code   expect.that(results).containsExactly(...);}
+ * {@code   expect.that(errors).isEmpty();}
+ * </pre>
+ *
+ * If both of the assertions above fail, the test will fail with an exception that contains
+ * information about both.
+ */
 @GwtIncompatible("JUnit4")
-public final class Expect extends TestVerb implements TestRule {
+public final class Expect extends StandardSubjectBuilder implements TestRule {
   /**
-   * @deprecated To provide your own failure handling, use {@code new TestVerb(new
-   *     AbstractFailureStrategy() { ... })} instead of {@code Expect.create(new
-   *     ExpectationGatherer() { ... })}. Or, if you're testing that assertions on a custom {@code
-   *     Subject} fail (using {@code ExpectationGatherer} to capture the failures), use {@link
-   *     ExpectFailure}.
+   * @deprecated To provide your own failure handling, use {@code
+   *     StandardSubjectBuilder.forCustomFailureStrategy(new AbstractFailureStrategy() { ... })}
+   *     instead of {@code Expect.create(new ExpectationGatherer() { ... })}. Or, if you're testing
+   *     that assertions on a custom {@code Subject} fail (using {@code ExpectationGatherer} to
+   *     capture the failures), use {@link ExpectFailure}.
    */
   @Deprecated
   public static class ExpectationGatherer extends AbstractFailureStrategy {
@@ -60,33 +79,29 @@ public final class Expect extends TestVerb implements TestRule {
     @Override
     public void fail(String message, Throwable cause) {
       messages.add(
-          ExpectationFailure.create(message, cause != null ? cause : new Throwable(message)));
+          new ExpectationFailure(
+              message, cause != null ? new AssertionError(cause) : new AssertionError()));
     }
 
+    // TODO(cpovirk): Rename this to "getFailures" or something.
     public List<ExpectationFailure> getMessages() {
       return messages;
     }
 
     @Override
     public String toString() {
-      Throwable earliestCause = null;
       StringBuilder message = new StringBuilder("All failed expectations:\n");
       int count = 0;
       for (ExpectationFailure failure : getMessages()) {
-        if (earliestCause == null && failure.cause() != null) {
-          earliestCause = failure.cause();
-        }
-        message
-            .append("  ")
-            .append((count++) + 1)
-            .append(". ")
-            .append(failure.message())
-            .append("\n");
-        if (showStackTrace && failure.cause() != null) {
-          // Append stack trace to the failure message
-          StringWriter stackTraceWriter = new StringWriter();
-          failure.cause().printStackTrace(new PrintWriter(stackTraceWriter));
-          message.append(stackTraceWriter + "\n");
+        count++;
+        message.append("  ");
+        message.append(count);
+        message.append(". ");
+        message.append(failure.message());
+        message.append("\n");
+        if (showStackTrace) {
+          message.append(getStackTraceAsString(stripTruthStackFrames(failure.cause())));
+          message.append("\n");
         }
       }
 
@@ -94,15 +109,12 @@ public final class Expect extends TestVerb implements TestRule {
     }
   }
 
+  // TODO(cpovirk): Eliminate this in favor of just storing an AssertionError.
   private static final class ExpectationFailure {
     private final String message;
-    @Nullable private final Throwable cause;
+    private final Throwable cause;
 
-    static ExpectationFailure create(String message, @Nullable Throwable cause) {
-      return new ExpectationFailure(message, cause);
-    }
-
-    private ExpectationFailure(String message, @Nullable Throwable cause) {
+    ExpectationFailure(String message, Throwable cause) {
       this.message = checkNotNull(message);
       this.cause = cause;
     }
@@ -111,7 +123,6 @@ public final class Expect extends TestVerb implements TestRule {
       return message;
     }
 
-    @Nullable
     Throwable cause() {
       return cause;
     }
@@ -140,9 +151,9 @@ public final class Expect extends TestVerb implements TestRule {
   }
 
   /**
-   * @deprecated To provide your own failure handling, use {@code new TestVerb(new
-   *     AbstractFailureStrategy() { ... })} instead of {@code Expect.create(new
-   *     ExpectationGatherer() { ... })}.
+   * @deprecated To provide your own failure handling, use {@code
+   *     StandardSubjectBuilder.forCustomFailureStrategy(new AbstractFailureStrategy() { ... })}
+   *     instead of {@code Expect.create(new ExpectationGatherer() { ... })}.
    */
   @Deprecated
   public static Expect create(ExpectationGatherer gatherer) {
@@ -163,12 +174,9 @@ public final class Expect extends TestVerb implements TestRule {
   }
 
   @Override
-  protected FailureStrategy getFailureStrategy() {
-    if (!inRuleContext) {
-      String message = "assertion made on Expect instance, but it's not enabled as a @Rule.";
-      throw new IllegalStateException(message);
-    }
-    return super.getFailureStrategy();
+  void checkStatePreconditions() {
+    checkState(
+        inRuleContext, "assertion made on Expect instance, but it's not enabled as a @Rule.");
   }
 
   @Override
@@ -179,13 +187,23 @@ public final class Expect extends TestVerb implements TestRule {
       @Override
       public void evaluate() throws Throwable {
         inRuleContext = true;
-        base.evaluate();
-        inRuleContext = false;
-        Throwable earliestCause = null;
+        try {
+          base.evaluate();
+        } catch (Throwable t) {
+          if (!gatherer.getMessages().isEmpty()) {
+            String message =
+                t instanceof AssumptionViolatedException
+                    ? "Failures occurred before an assumption was violated"
+                    : "Failures occurred before an exception was thrown while the test was running";
+            gatherer.fail(message + ": " + t, t);
+          } else {
+            throw t;
+          }
+        } finally {
+          inRuleContext = false;
+        }
         if (!gatherer.getMessages().isEmpty()) {
-          AssertionError error = new AssertionError(gatherer.toString());
-          error.initCause(earliestCause);
-          throw error;
+          throw new AssertionError(gatherer.toString());
         }
       }
     };

@@ -15,6 +15,8 @@
  */
 package com.google.common.truth;
 
+import static com.google.common.truth.TruthJUnit.assume;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -61,6 +63,65 @@ public class ExpectTest {
     EXPECT.that("abc").contains("x");
     EXPECT.that("abc").contains("y");
     EXPECT.that("abc").contains("z");
+  }
+
+  @Test
+  public void expectFailWithExceptionNoMessage() {
+    thrown.expectMessage("All failed expectations:");
+    thrown.expectMessage("1. Not true that <\"abc\"> contains <\"x\">");
+    thrown.expectMessage("2. Not true that <\"abc\"> contains <\"y\">");
+    thrown.expectMessage(
+        "3. Failures occurred before an exception was thrown while the test was running: "
+            + "java.lang.IllegalStateException");
+    EXPECT.that("abc").contains("x");
+    EXPECT.that("abc").contains("y");
+    throw new IllegalStateException();
+  }
+
+  @Test
+  public void expectFailWithExceptionWithMessage() {
+    thrown.expectMessage("All failed expectations:");
+    thrown.expectMessage("1. Not true that <\"abc\"> contains <\"x\">");
+    thrown.expectMessage("2. Not true that <\"abc\"> contains <\"y\">");
+    thrown.expectMessage(
+        "3. Failures occurred before an exception was thrown while the test was running: "
+            + "java.lang.IllegalStateException: testing");
+    EXPECT.that("abc").contains("x");
+    EXPECT.that("abc").contains("y");
+    throw new IllegalStateException("testing");
+  }
+
+  @Test
+  public void expectFailWithExceptionBeforeExpectFailures() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("testing");
+    throwException();
+    EXPECT.that("abc").contains("x");
+    EXPECT.that("abc").contains("y");
+  }
+
+  private void throwException() {
+    throw new IllegalStateException("testing");
+  }
+
+  @Test
+  public void expectFailWithFailuresBeforeAssume() {
+    thrown.expectMessage("All failed expectations:");
+    thrown.expectMessage("1. Not true that <\"abc\"> contains <\"x\">");
+    thrown.expectMessage("2. Not true that <\"abc\"> contains <\"y\">");
+    thrown.expectMessage(
+        "3. Failures occurred before an assumption was violated: "
+            + "com.google.common.truth.TruthJUnit$ThrowableAssumptionViolatedException: testing");
+    EXPECT.that("abc").contains("x");
+    EXPECT.that("abc").contains("y");
+    assume().fail("testing");
+  }
+
+  @Test
+  public void expectSuccessWithFailuresAfterAssume() {
+    assume().fail("testing");
+    EXPECT.that("abc").contains("x");
+    EXPECT.that("abc").contains("y");
   }
 
   @Test
