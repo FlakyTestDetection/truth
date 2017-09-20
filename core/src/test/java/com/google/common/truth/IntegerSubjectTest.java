@@ -308,6 +308,7 @@ public class IntegerSubjectTest {
         .isEqualTo("Not true that <2147483647> is equal to <9223372036854775807>");
   }
 
+  @SuppressWarnings("TruthSelfEquals")
   @Test
   public void testPrimitivesVsBoxedPrimitivesVsObject_int() {
     int int42 = 42;
@@ -327,6 +328,7 @@ public class IntegerSubjectTest {
     assertThat(object42).isEqualTo(object42);
   }
 
+  @SuppressWarnings("TruthSelfEquals")
   @Test
   public void testPrimitivesVsBoxedPrimitivesVsObject_long() {
     long longPrim42 = 42;
@@ -513,11 +515,11 @@ public class IntegerSubjectTest {
         .isEqualTo("Not true that <*> is not equal to <42>");
   }
 
-  private static final SubjectFactory<DefaultSubject, Object> DEFAULT_SUBJECT_FACTORY =
-      new SubjectFactory<DefaultSubject, Object>() {
+  private static final Subject.Factory<DefaultSubject, Object> DEFAULT_SUBJECT_FACTORY =
+      new Subject.Factory<DefaultSubject, Object>() {
         @Override
-        public DefaultSubject getSubject(FailureStrategy fs, Object that) {
-          return new DefaultSubject(fs, that);
+        public DefaultSubject createSubject(FailureMetadata metadata, Object that) {
+          return new DefaultSubject(metadata, that);
         }
       };
 
