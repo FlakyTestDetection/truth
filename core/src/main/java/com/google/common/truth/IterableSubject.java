@@ -82,12 +82,28 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
    *     constructor instead.
    */
   @Deprecated
-  protected IterableSubject(FailureStrategy failureStrategy, @Nullable Iterable<?> list) {
-    super(failureStrategy, list);
+  protected IterableSubject(FailureStrategy failureStrategy, @Nullable Iterable<?> iterable) {
+    super(failureStrategy, iterable);
   }
 
-  protected IterableSubject(FailureMetadata metadata, @Nullable Iterable<?> list) {
-    super(metadata, list);
+  protected IterableSubject(FailureMetadata metadata, @Nullable Iterable<?> iterable) {
+    super(metadata, iterable);
+  }
+
+  @Override
+  protected String actualCustomStringRepresentation() {
+    if (actual() != null) {
+      // Check the value of iterable.toString() against the default Object.toString() implementation
+      // so we can avoid things like "com.google.common.graph.Traverser$GraphTraverser$1@5e316c74"
+      String objectToString =
+          actual().getClass().getName()
+              + '@'
+              + Integer.toHexString(System.identityHashCode(actual()));
+      if (actual().toString().equals(objectToString)) {
+        return Iterables.toString(actual());
+      }
+    }
+    return super.actualCustomStringRepresentation();
   }
 
   /** Fails if the subject is not empty. */
@@ -433,9 +449,9 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
   /**
    * Fails with the bad results and a suffix.
    *
-   * @param verb the proposition being asserted
+   * @param verb the check being asserted
    * @param expected the expectations against which the subject is compared
-   * @param failVerb the failure of the proposition being asserted
+   * @param failVerb the failure of the check being asserted
    * @param actual the actual value the subject was compared against
    * @param suffix a suffix to append to the failure message
    */
@@ -609,11 +625,10 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
   }
 
   /**
-   * Starts a method chain for a test proposition in which the actual elements (i.e. the elements of
-   * the {@link Iterable} under test) are compared to expected elements using the given {@link
-   * Correspondence}. The actual elements must be of type {@code A}, the expected elements must be
-   * of type {@code E}. The proposition is actually executed by continuing the method chain. For
-   * example:
+   * Starts a method chain for a check in which the actual elements (i.e. the elements of the {@link
+   * Iterable} under test) are compared to expected elements using the given {@link Correspondence}.
+   * The actual elements must be of type {@code A}, the expected elements must be of type {@code E}.
+   * The check is actually executed by continuing the method chain. For example:
    *
    * <pre>{@code
    * assertThat(actualIterable).comparingElementsUsing(correspondence).contains(expected);
@@ -632,10 +647,10 @@ public class IterableSubject extends Subject<IterableSubject, Iterable<?>> {
   }
 
   /**
-   * A partially specified proposition in which the actual elements (normally the elements of the
-   * {@link Iterable} under test) are compared to expected elements using a {@link Correspondence}.
-   * The expected elements are of type {@code E}. Call methods on this object to actually execute
-   * the proposition.
+   * A partially specified check in which the actual elements (normally the elements of the {@link
+   * Iterable} under test) are compared to expected elements using a {@link Correspondence}. The
+   * expected elements are of type {@code E}. Call methods on this object to actually execute the
+   * check.
    */
   public class UsingCorrespondence<A, E> {
 
