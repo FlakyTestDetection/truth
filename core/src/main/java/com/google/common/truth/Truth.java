@@ -60,13 +60,14 @@ import javax.annotation.Nullable;
  *   <li>provides richer operations (like {@link IterableSubject#containsExactly})
  * </ul>
  *
- * <p>TODO(cpovirk): Link to a doc about the full assertion chain.
+ * <p>For more information about the methods in this class, see <a
+ * href="https://google.github.io/truth/faq#full-chain">this FAQ entry</a>.
  *
  * <h3>For people extending Truth</h3>
  *
- * <p>TODO(cpovirk): Link to a doc about custom subjects.
- *
- * <p>TODO(cpovirk): Also talk about {@link FailureStrategy}.
+ * <p>The most common way to extend Truth is to write a custom {@link Subject}. (The other, much
+ * less common way is to write a custom {@link FailureStrategy}.) For more information, visit those
+ * types' docs.
  *
  * @author David Saff
  * @author Christian Gruber (cgruber@israfil.net)

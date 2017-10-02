@@ -25,11 +25,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <p>(Note that the "custom" {@code that} methods are not defined on {@code CustomSubjectBuilder}
  * itself, only on its subtypes, which are the types users actually interact with.)
  *
- * <p>TODO(cpovirk): Link to a doc about the full assertion chain.
+ * <p>For more information about the methods in this class, see <a
+ * href="https://google.github.io/truth/faq#full-chain">this FAQ entry</a>.
  *
  * <h3>For people extending Truth</h3>
  *
- * <p>TODO(cpovirk): Link to a doc about custom subjects.
+ * <p>When you write a custom subject, see <a href="https://google.github.io/truth/extension">our doc on
+ * extensions</a>. It explains the cases in which {@code CustomSubjectBuilder} is necessary.
  */
 public abstract class CustomSubjectBuilder {
   /**
@@ -37,11 +39,14 @@ public abstract class CustomSubjectBuilder {
    * StandardSubjectBuilder#about(CustomSubjectBuilder.Factory) about}, the method that specifies
    * what kind of {@link Subject} to create.
    *
-   * <p>TODO(cpovirk): Link to a doc about the full assertion chain.
+   * <p>For more information about the fluent chain, see <a
+   * href="https://google.github.io/truth/faq#full-chain">this FAQ entry</a>.
    *
    * <h3>For people extending Truth</h3>
    *
-   * <p>TODO(cpovirk): Link to a doc about custom subjects.
+   * <p>When you write a custom subject, see <a href="https://google.github.io/truth/extension">our doc on
+   * extensions</a>. It explains the cases in which {@code CustomSubjectBuilder.Factory} is
+   * necessary.
    */
   public interface Factory<CustomSubjectBuilderT extends CustomSubjectBuilder> {
     /** Creates a new {@link CustomSubjectBuilder} of the appropriate type. */

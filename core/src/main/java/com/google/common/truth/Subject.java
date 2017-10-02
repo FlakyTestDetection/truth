@@ -31,11 +31,14 @@ import javax.annotation.Nullable;
  * contains {@link #isEqualTo(Object)} and {@link #isInstanceOf(Class)}, and {@link StringSubject}
  * contains {@link StringSubject#startsWith startsWith(String)}.
  *
- * <p>TODO(cpovirk): Link to a doc about the full assertion chain.
+ * <p>To create a {@code Subject} instance, most users will call an {@link Truth#assertThat
+ * assertThat} method. For information about other ways to create an instance, see <a
+ * href="https://google.github.io/truth/faq#full-chain">this FAQ entry</a>.
  *
  * <h3>For people extending Truth</h3>
  *
- * <p>TODO(cpovirk): Link to a doc about custom subjects.
+ * <p>For information about writing a custom {@link Subject}, see <a
+ * href="https://google.github.io/truth/extension">our doc on extensions</a>.
  *
  * @param <S> the self-type, allowing {@code this}-returning methods to avoid needing subclassing
  * @param <T> the type of the object being tested by this {@code Subject}
@@ -48,11 +51,13 @@ public class Subject<S extends Subject<S, T>, T> {
    * StandardSubjectBuilder#about(Subject.Factory) about}, the method that specifies what kind of
    * {@link Subject} to create.
    *
-   * <p>TODO(cpovirk): Link to a doc about the full assertion chain.
+   * <p>For more information about the fluent chain, see <a
+   * href="https://google.github.io/truth/faq#full-chain">this FAQ entry</a>.
    *
    * <h3>For people extending Truth</h3>
    *
-   * <p>TODO(cpovirk): Link to a doc about custom subjects.
+   * <p>When you write a custom subject, see <a href="https://google.github.io/truth/extension">our doc on
+   * extensions</a>. It explains where {@code Subject.Factory} fits into the process.
    */
   public interface Factory<SubjectT extends Subject<SubjectT, ActualT>, ActualT> {
     /** Creates a new {@link Subject}. */

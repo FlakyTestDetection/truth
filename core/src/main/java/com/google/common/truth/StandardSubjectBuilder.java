@@ -44,11 +44,13 @@ import javax.annotation.Nullable;
  *       with {@link #that(Object)}.
  * </ul>
  *
- * <p>TODO(cpovirk): Link to a doc about the full assertion chain.
+ * <p>For more information about the methods in this class, see <a
+ * href="https://google.github.io/truth/faq#full-chain">this FAQ entry</a>.
  *
  * <h3>For people extending Truth</h3>
  *
- * <p>TODO(cpovirk): Link to a doc about custom subjects.
+ * <p>You won't extend this type. When you write a custom subject, see <a
+ * href="https://google.github.io/truth/extension">our doc on extensions</a>.
  */
 public class StandardSubjectBuilder {
   /**
