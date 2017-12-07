@@ -16,7 +16,6 @@
 package com.google.common.truth;
 
 import com.google.common.base.Throwables;
-import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
@@ -129,16 +128,6 @@ final class Platform {
     return Pattern.compile(regex).matcher(actual).find();
   }
 
-  /** Returns the length of an array. */
-  static int getArrayLength(Object array) {
-    return Array.getLength(array);
-  }
-
-  /** Returns the item in the array at index i. */
-  static Object getFromArray(Object array, int i) {
-    return Array.get(array, i);
-  }
-
   /**
    * Returns an array containing all of the exceptions that were suppressed to deliver the given
    * exception. If suppressed exceptions are not supported (pre-Java 1.7), an empty array will be
@@ -199,6 +188,11 @@ final class Platform {
   /** Returns a human readable string representation of the throwable's stack trace. */
   static String getStackTraceAsString(Throwable throwable) {
     return Throwables.getStackTraceAsString(throwable);
+  }
+
+  /** Tests if current platform is Android. */
+  static boolean isAndroid() {
+    return System.getProperties().getProperty("java.runtime.name").contains("Android");
   }
 
   /**

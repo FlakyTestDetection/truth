@@ -62,7 +62,7 @@ final class Platform {
   static AssertionError comparisonFailure(
       String message, String expected, String actual, Throwable cause) {
     AssertionError failure =
-        new AssertionError(format("%s: expected: %s actual: %s", message, expected, actual));
+        new AssertionError(format("%s expected:<[%s]> but was:<[%s]>", message, expected, actual));
     failure.initCause(cause); // Not affected by Android bug
     return failure;
   }
@@ -70,64 +70,6 @@ final class Platform {
   /** Determines if the given subject contains a match for the given regex. */
   static boolean containsMatch(String subject, String regex) {
     return compile(regex).test(subject);
-  }
-
-  /** Returns the length of an array. */
-  static int getArrayLength(Object array) {
-    if (array == null || !array.getClass().isArray()) {
-      throw new IllegalArgumentException("not an array: " + array);
-    }
-
-    if (array.getClass() == boolean[].class) {
-      return ((boolean[]) array).length;
-    } else if (array.getClass() == int[].class) {
-      return ((int[]) array).length;
-    } else if (array.getClass() == long[].class) {
-      return ((long[]) array).length;
-    } else if (array.getClass() == short[].class) {
-      return ((short[]) array).length;
-    } else if (array.getClass() == byte[].class) {
-      return ((byte[]) array).length;
-    } else if (array.getClass() == double[].class) {
-      return ((double[]) array).length;
-    } else if (array.getClass() == float[].class) {
-      return ((float[]) array).length;
-    } else if (array.getClass() == char[].class) {
-      return ((char[]) array).length;
-    } else {
-      return ((Object[]) array).length;
-    }
-  }
-
-  /** Returns the item in the array at index i. */
-  static Object getFromArray(Object array, int i) {
-    if (array == null) {
-      throw new NullPointerException("array is null");
-    } else if (!array.getClass().isArray()) {
-      throw new IllegalArgumentException("not an array: " + array);
-    } else if (i < 0 || i >= getArrayLength(array)) {
-      throw new ArrayIndexOutOfBoundsException(i);
-    }
-
-    if (array.getClass() == boolean[].class) {
-      return ((boolean[]) array)[i];
-    } else if (array.getClass() == int[].class) {
-      return ((int[]) array)[i];
-    } else if (array.getClass() == long[].class) {
-      return ((long[]) array)[i];
-    } else if (array.getClass() == short[].class) {
-      return ((short[]) array)[i];
-    } else if (array.getClass() == byte[].class) {
-      return ((byte[]) array)[i];
-    } else if (array.getClass() == double[].class) {
-      return ((double[]) array)[i];
-    } else if (array.getClass() == float[].class) {
-      return ((float[]) array)[i];
-    } else if (array.getClass() == char[].class) {
-      return ((char[]) array)[i];
-    } else {
-      return ((Object[]) array)[i];
-    }
   }
 
   /**
@@ -140,6 +82,11 @@ final class Platform {
 
   /** Always returns false. Stack traces will be cleaned by default. */
   static boolean isStackTraceCleaningDisabled() {
+    return false;
+  }
+
+  /** Tests if current platform is Android which is always false. */
+  static boolean isAndroid() {
     return false;
   }
 
