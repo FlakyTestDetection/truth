@@ -204,27 +204,31 @@ public interface IterableOfProtosFluentAssertion<M extends Message> {
   IterableOfProtosFluentAssertion<M> reportingMismatchesOnly();
 
   /**
-   * Attests that the subject contains at least one element that corresponds to the given expected
+   * Checks that the subject contains at least one element that corresponds to the given expected
    * element.
    */
   void contains(@Nullable M expected);
 
-  /** Attests that none of the actual elements correspond to the given element. */
+  /** Checks that none of the actual elements correspond to the given element. */
   void doesNotContain(@Nullable M excluded);
 
   /**
-   * Attests that subject contains exactly elements that correspond to the expected elements, i.e.
+   * Checks that subject contains exactly elements that correspond to the expected elements, i.e.
    * that there is a 1:1 mapping between the actual elements and the expected elements where each
    * pair of elements correspond.
    *
    * <p>To also test that the contents appear in the given order, make a call to {@code inOrder()}
    * on the object returned by this method.
+   *
+   * <p>To test that the iterable contains the same elements as an array, prefer {@link
+   * #containsExactlyElementsIn(Object[])}. It makes clear that the given array is a list of
+   * elements, not an element itself.
    */
   @CanIgnoreReturnValue
   Ordered containsExactly(@Nullable M... expected);
 
   /**
-   * Attests that subject contains exactly elements that correspond to the expected elements, i.e.
+   * Checks that subject contains exactly elements that correspond to the expected elements, i.e.
    * that there is a 1:1 mapping between the actual elements and the expected elements where each
    * pair of elements correspond.
    *
@@ -235,7 +239,18 @@ public interface IterableOfProtosFluentAssertion<M extends Message> {
   Ordered containsExactlyElementsIn(Iterable<? extends M> expected);
 
   /**
-   * Attests that the subject contains elements that corresponds to all of the expected elements,
+   * Checks that subject contains exactly elements that correspond to the expected elements, i.e.
+   * that there is a 1:1 mapping between the actual elements and the expected elements where each
+   * pair of elements correspond.
+   *
+   * <p>To also test that the contents appear in the given order, make a call to {@code inOrder()}
+   * on the object returned by this method.
+   */
+  @CanIgnoreReturnValue
+  Ordered containsExactlyElementsIn(M[] expected);
+
+  /**
+   * Checks that the subject contains elements that corresponds to all of the expected elements,
    * i.e. that there is a 1:1 mapping between any subset of the actual elements and the expected
    * elements where each pair of elements correspond.
    *
@@ -247,7 +262,7 @@ public interface IterableOfProtosFluentAssertion<M extends Message> {
   Ordered containsAllOf(@Nullable M first, @Nullable M second, @Nullable M... rest);
 
   /**
-   * Attests that the subject contains elements that corresponds to all of the expected elements,
+   * Checks that the subject contains elements that corresponds to all of the expected elements,
    * i.e. that there is a 1:1 mapping between any subset of the actual elements and the expected
    * elements where each pair of elements correspond.
    *
@@ -259,19 +274,37 @@ public interface IterableOfProtosFluentAssertion<M extends Message> {
   Ordered containsAllIn(Iterable<? extends M> expected);
 
   /**
-   * Attests that the subject contains at least one element that corresponds to at least one of the
+   * Checks that the subject contains elements that corresponds to all of the expected elements,
+   * i.e. that there is a 1:1 mapping between any subset of the actual elements and the expected
+   * elements where each pair of elements correspond.
+   *
+   * <p>To also test that the contents appear in the given order, make a call to {@code inOrder()}
+   * on the object returned by this method. The elements must appear in the given order within the
+   * subject, but they are not required to be consecutive.
+   */
+  @CanIgnoreReturnValue
+  Ordered containsAllIn(M[] expected);
+
+  /**
+   * Checks that the subject contains at least one element that corresponds to at least one of the
    * expected elements.
    */
   void containsAnyOf(@Nullable M first, @Nullable M second, @Nullable M... rest);
 
   /**
-   * Attests that the subject contains at least one element that corresponds to at least one of the
+   * Checks that the subject contains at least one element that corresponds to at least one of the
    * expected elements.
    */
   void containsAnyIn(Iterable<? extends M> expected);
 
   /**
-   * Attests that the subject contains no elements that correspond to any of the given elements.
+   * Checks that the subject contains at least one element that corresponds to at least one of the
+   * expected elements.
+   */
+  void containsAnyIn(M[] expected);
+
+  /**
+   * Checks that the subject contains no elements that correspond to any of the given elements.
    * (Duplicates are irrelevant to this test, which fails if any of the subject elements correspond
    * to any of the given elements.)
    */
@@ -279,11 +312,18 @@ public interface IterableOfProtosFluentAssertion<M extends Message> {
       @Nullable M firstExcluded, @Nullable M secondExcluded, @Nullable M... restOfExcluded);
 
   /**
-   * Attests that the subject contains no elements that correspond to any of the given elements.
+   * Checks that the subject contains no elements that correspond to any of the given elements.
    * (Duplicates are irrelevant to this test, which fails if any of the subject elements correspond
    * to any of the given elements.)
    */
   void containsNoneIn(Iterable<? extends M> excluded);
+
+  /**
+   * Checks that the subject contains no elements that correspond to any of the given elements.
+   * (Duplicates are irrelevant to this test, which fails if any of the subject elements correspond
+   * to any of the given elements.)
+   */
+  void containsNoneIn(M[] excluded);
 
   /**
    * @deprecated Do not call {@code equals()} on a {@code IterableOfProtosFluentAssertion}.
