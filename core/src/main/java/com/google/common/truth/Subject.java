@@ -23,6 +23,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -70,9 +71,7 @@ public class Subject<S extends Subject<S, T>, T> {
         public void fail(String message, Throwable cause) {}
       };
 
-  // TODO(cpovirk): Make private after MultimapSubject no longer needs it.
-  final FailureMetadata metadata;
-
+  private final FailureMetadata metadata;
   private final T actual;
   private String customName = null;
 

@@ -31,15 +31,16 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.junit.internal.AssumptionViolatedException;
+import org.junit.rules.ErrorCollector;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
  * A {@link TestRule} that batches up all failures encountered during a test, and reports them all
- * together at the end. It is also useful for making assertions from other threads or from within
- * callbacks whose exceptions would be swallowed or logged, rather than propagated out to fail the
- * test.
+ * together at the end (similar to {@link ErrorCollector}). It is also useful for making assertions
+ * from other threads or from within callbacks whose exceptions would be swallowed or logged, rather
+ * than propagated out to fail the test.
  *
  * <p>Usage:
  *
@@ -80,13 +81,13 @@ public final class Expect extends StandardSubjectBuilder implements TestRule {
     }
 
     @Override
-    public void failComparing(
+    public synchronized void failComparing(
         String message, CharSequence expected, CharSequence actual, Throwable cause) {
       cleanAndRecord(comparisonFailure(message, expected.toString(), actual.toString(), cause));
     }
 
     @Override
-    public void fail(String message, Throwable cause) {
+    public synchronized void fail(String message, Throwable cause) {
       cleanAndRecord(new AssertionErrorWithCause(message, cause));
     }
 
@@ -115,12 +116,6 @@ public final class Expect extends StandardSubjectBuilder implements TestRule {
 
     synchronized void checkInRuleContext() {
       doCheckInRuleContext(null);
-    }
-
-    private synchronized void cleanAndRecord(AssertionError failure) {
-      cleanStackTrace(failure);
-      doCheckInRuleContext(failure);
-      failures.add(failure);
     }
 
     synchronized boolean hasFailures() {
@@ -187,6 +182,13 @@ public final class Expect extends StandardSubjectBuilder implements TestRule {
       } else {
         throw caught;
       }
+    }
+
+    @GuardedBy("this")
+    private void cleanAndRecord(AssertionError failure) {
+      cleanStackTrace(failure);
+      doCheckInRuleContext(failure);
+      failures.add(failure);
     }
   }
 
